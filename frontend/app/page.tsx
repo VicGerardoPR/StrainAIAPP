@@ -12,6 +12,9 @@ export default function Home() {
       </div>
       <ReviewDialog />
       <Gallery />
+      <footer className="w-full mt-32 py-8 text-center text-sm text-muted-foreground border-t border-border/40">
+        <p>Creado por Arcano Intelligence</p>
+      </footer>
     </main>
   );
 }
