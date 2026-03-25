@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+pydantic
+pillow
+python-multipart
+python-dotenv
+huggingface_hub
+transformers
+torch
+torchvision
+torchaudio
