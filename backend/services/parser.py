@@ -22,8 +22,12 @@ class LabReportParser:
         
     async def extract_data(self, file_content: str, file_name: str) -> LabReportData:
         # Decode base64
-        image_data = base64.b64decode(file_content)
-        image = Image.open(io.BytesIO(image_data))
+        try:
+            image_data = base64.b64decode(file_content)
+            image = Image.open(io.BytesIO(image_data))
+            # image.verify() could be called here
+        except Exception as e:
+            print(f"Warning: Could not open file as Image (might be PDF or unsupported): {e}")
         
         # Simulated extraction results
         # In a real implementation, we would call a ViT/LayoutLM model

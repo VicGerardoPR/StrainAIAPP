@@ -33,6 +33,8 @@ async def extract(file: UploadFile = File(...)):
         data = await parser.extract_data(b64_content, file.filename)
         return data
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/generate-preview")
