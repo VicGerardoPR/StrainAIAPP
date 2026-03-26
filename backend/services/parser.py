@@ -86,38 +86,18 @@ class LabReportParser:
                         source_type="ai_real"
                     )
             except Exception as e:
-                print(f"AI Extraction failed: {e}")
+                # If we reach here, it means AI or Token failed
+        return self._empty_extraction(file_name)
 
-        return self._mock_extraction(file_name)
-
-    def _mock_extraction(self, file_name: str) -> LabReportData:
-        # This mocks the data format we expect from a successful extraction
+    def _empty_extraction(self, file_name: str) -> LabReportData:
+        # Returns an empty template when AI fails
         return LabReportData(
-            strain_name="Blue Dream",
-            strain_type="Sativa-dominant",
-            dominance="60% Sativa",
-            lab_name="GSI Labs",
-            producer="Pacific Green",
-            batch="BD-2024-001",
-            lot_number="L-8829",
-            sample_id="SAMPLE-X",
-            test_date="2024-03-24",
-            origin="California, USA",
-            genetics="Blueberry x Haze",
-            cannabinoids=[
-                Cannabinoid(name="THC", value=22.5, unit="%", display_label="High Potency"),
-                Cannabinoid(name="THCA", value=19.2, unit="%"),
-                Cannabinoid(name="Total THC", value=18.5, unit="%"),
-                Cannabinoid(name="CBD", value=0.1, unit="%"),
-                Cannabinoid(name="CBG", value=1.2, unit="%")
-            ],
-            terpenes=[
-                Terpene(name="Myrcene", value=0.85, unit="%", display_effects=["Relaxing", "Sedating"]),
-                Terpene(name="Pinene", value=0.45, unit="%"),
-                Terpene(name="Caryophyllene", value=0.32, unit="%")
-            ],
-            confidence=0.95,
-            source_type="mock",
+            strain_name="Processing Failed",
+            strain_type="Unknown",
+            cannabinoids=[],
+            terpenes=[],
+            confidence=0.0,
+            source_type="error",
             file_name=file_name
         )
 
