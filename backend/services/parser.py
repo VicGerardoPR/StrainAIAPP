@@ -39,6 +39,7 @@ class LabReportParser:
             print(f"Error preparing file: {e}")
 
         # 2. Inference API
+        print(f"DEBUG: HF_TOKEN exists: {self.hf_token is not None}")
         if self.hf_token and image_to_process:
             try:
                 import requests
@@ -57,6 +58,7 @@ class LabReportParser:
                 for key, q in questions.items():
                     payload = {"inputs": {"image": image_to_process, "question": q}}
                     resp = requests.post(API_URL, headers=headers, json=payload).json()
+                    print(f"DEBUG: Response for {key}: {resp}")
                     if isinstance(resp, list) and len(resp) > 0:
                         results[key] = resp[0]
 
