@@ -11,3 +11,4 @@ torch
 torchvision
 torchaudio
 pdf2image
+pytesseract
