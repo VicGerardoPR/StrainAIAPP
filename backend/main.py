@@ -21,6 +21,10 @@ app.add_middleware(
 parser = LabReportParser()
 renderer = VisualRenderer()
 
+@app.get("/")
+async def root():
+    return {"message": "StrainAI Backend API is up and running!", "docs": "/docs"}
+
 @app.get("/health")
 async def health():
     return {"status": "healthy"}
