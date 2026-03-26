@@ -33,7 +33,7 @@ async def health():
 async def extract(file: UploadFile = File(...)):
     try:
         contents = await file.read()
-        b64_content = base64.b64encode(contents)
+        b64_content = base64.b64encode(contents).decode("utf-8")
         data = await parser.extract_data(b64_content, file.filename)
         return data
     except Exception as e:
