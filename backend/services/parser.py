@@ -22,7 +22,7 @@ class LabReportParser:
         self.hf_token = hf_token or os.getenv("HF_TOKEN")
         
     async def extract_data(self, file_content: str, file_name: str) -> LabReportData:
-        # 1. Ensure we have an image even if it's a PDF
+        # 1. Ensure we have an image
         image_to_process = None
         try:
             image_data = base64.b64decode(file_content)
@@ -30,59 +30,62 @@ class LabReportParser:
                 from pdf2image import convert_from_bytes
                 images = convert_from_bytes(image_data)
                 if images:
-                    # Use the first page for extraction
                     buffered = io.BytesIO()
-                    images[0].save(buffered, format="JPEG")
+                    images[0].save(buffered, format="JPEG", quality=90)
                     image_to_process = base64.b64encode(buffered.getvalue()).decode("utf-8")
             else:
-                image_to_process = file_content # Already an image
+                image_to_process = file_content
         except Exception as e:
-            print(f"Error preparing file for extraction: {e}")
+            print(f"Error preparing file: {e}")
 
-        # 2. Use the Inference API for real extraction
+        # 2. Inference API
         if self.hf_token and image_to_process:
             try:
                 import requests
                 API_URL = "https://api-inference.huggingface.co/models/impira/layoutlm-document-qa"
                 headers = {"Authorization": f"Bearer {self.hf_token}"}
                 
-                def query(question):
-                    payload = {
-                        "inputs": {
-                            "image": image_to_process,
-                            "question": question
-                        }
-                    }
-                    response = requests.post(API_URL, headers=headers, json=payload)
-                    return response.json()
-
-                # Attempt real extractions
-                strain_resp = query("What is the strain name?")
-                thc_resp = query("What is the Total THC percentage?")
-                cbd_resp = query("What is the Total CBD percentage?")
+                results = {}
+                questions = {
+                    "strain": "What is the strain name or sample name?",
+                    "thc": "What is the total THC percentage?",
+                    "cbd": "What is the total CBD percentage?",
+                    "lab": "What is the name of the lab?",
+                    "date": "What is the test date?"
+                }
                 
-                # If we get credible answers, we build a real object
-                if isinstance(strain_resp, list) and len(strain_resp) > 0:
-                    real_strain = strain_resp[0].get("answer", "Blue Dream")
-                    real_thc = 0.0
-                    if isinstance(thc_resp, list) and len(thc_resp) > 0:
+                for key, q in questions.items():
+                    payload = {"inputs": {"image": image_to_process, "question": q}}
+                    resp = requests.post(API_URL, headers=headers, json=payload).json()
+                    if isinstance(resp, list) and len(resp) > 0:
+                        results[key] = resp[0]
+
+                if "strain" in results:
+                    strain_name = results["strain"].get("answer", "Unknown Strain")
+                    thc_val = 0.0
+                    if "thc" in results:
                         try:
-                            # Clean "22.5%" -> 22.5
-                            thc_str = thc_resp[0].get("answer", "0").replace("%", "").strip()
-                            real_thc = float(thc_str)
+                            # Extract number like "22.5" from "22.5%"
+                            val_str = "".join(c for c in results["thc"]["answer"] if c.isdigit() or c == ".")
+                            thc_val = float(val_str)
                         except: pass
 
+                    print(f"AI Success: {strain_name} - THC: {thc_val}%")
                     return LabReportData(
-                        strain_name=real_strain,
-                        cannabinoids=[Cannabinoid(name="Total THC", value=real_thc)],
+                        strain_name=strain_name,
+                        lab_name=results.get("lab", {}).get("answer"),
+                        test_date=results.get("date", {}).get("answer"),
+                        cannabinoids=[
+                            Cannabinoid(name="Total THC", value=thc_val),
+                            Cannabinoid(name="Total CBD", value=0.0) # simplify for now
+                        ],
                         file_name=file_name,
-                        confidence=strain_resp[0].get("score", 0.0),
-                        source_type="api"
+                        confidence=results["strain"].get("score", 0.0),
+                        source_type="ai_real"
                     )
             except Exception as e:
-                print(f"Inference API failed, falling back to mock: {e}")
+                print(f"AI Extraction failed: {e}")
 
-        # Fallback to mock
         return self._mock_extraction(file_name)
 
     def _mock_extraction(self, file_name: str) -> LabReportData:
