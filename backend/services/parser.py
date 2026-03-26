@@ -22,8 +22,25 @@ class LabReportParser:
         self.hf_token = hf_token or os.getenv("HF_TOKEN")
         
     async def extract_data(self, file_content: str, file_name: str) -> LabReportData:
-        # If we have a token, we can use the Inference API for real extraction
-        if self.hf_token:
+        # 1. Ensure we have an image even if it's a PDF
+        image_to_process = None
+        try:
+            image_data = base64.b64decode(file_content)
+            if file_name.lower().endswith('.pdf'):
+                from pdf2image import convert_from_bytes
+                images = convert_from_bytes(image_data)
+                if images:
+                    # Use the first page for extraction
+                    buffered = io.BytesIO()
+                    images[0].save(buffered, format="JPEG")
+                    image_to_process = base64.b64encode(buffered.getvalue()).decode("utf-8")
+            else:
+                image_to_process = file_content # Already an image
+        except Exception as e:
+            print(f"Error preparing file for extraction: {e}")
+
+        # 2. Use the Inference API for real extraction
+        if self.hf_token and image_to_process:
             try:
                 import requests
                 API_URL = "https://api-inference.huggingface.co/models/impira/layoutlm-document-qa"
@@ -32,7 +49,7 @@ class LabReportParser:
                 def query(question):
                     payload = {
                         "inputs": {
-                            "image": file_content,
+                            "image": image_to_process,
                             "question": question
                         }
                     }
@@ -42,6 +59,7 @@ class LabReportParser:
                 # Attempt real extractions
                 strain_resp = query("What is the strain name?")
                 thc_resp = query("What is the Total THC percentage?")
+                cbd_resp = query("What is the Total CBD percentage?")
                 
                 # If we get credible answers, we build a real object
                 if isinstance(strain_resp, list) and len(strain_resp) > 0:

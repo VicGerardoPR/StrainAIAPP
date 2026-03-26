@@ -10,3 +10,4 @@ transformers
 torch
 torchvision
 torchaudio
+pdf2image
