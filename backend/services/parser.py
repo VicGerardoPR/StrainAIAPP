@@ -86,7 +86,8 @@ class LabReportParser:
                         source_type="ai_real"
                     )
             except Exception as e:
-                # If we reach here, it means AI or Token failed
+                print(f"AI Extraction failed: {e}")
+        
         return self._empty_extraction(file_name)
 
     def _empty_extraction(self, file_name: str) -> LabReportData:
