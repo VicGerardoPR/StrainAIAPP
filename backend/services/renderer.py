@@ -17,141 +17,134 @@ class VisualRenderer:
         self.muted_text_color = (150, 150, 150)
         self.card_bg = (20, 20, 25, 180)  # semi-transparent
         
-        # Initialize fonts (fallbacks)
-        self.fonts = {}
-        
-        # System font paths to try on Mac/Linux
-        font_paths = [
+        self.font_paths = [
             os.path.join(self.font_dir, "Inter-Bold.ttf"),
             os.path.join(self.font_dir, "Inter-Regular.ttf"),
             "/System/Library/Fonts/Helvetica.ttc",
             "/System/Library/Fonts/Supplemental/Arial.ttf",
             "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
         ]
-        
+
+    def _get_fonts(self, scale: float):
         def load_font(size, bold=False):
-            for path in font_paths:
+            scaled_size = int(size * scale)
+            for path in self.font_paths:
                 try:
-                    # PIL can handle .ttc if you don't specify index (it takes index 0)
-                    return ImageFont.truetype(path, size)
+                    return ImageFont.truetype(path, scaled_size)
                 except Exception:
                     continue
             return ImageFont.load_default()
 
-        self.fonts['title'] = load_font(72, True)
-        self.fonts['subtitle'] = load_font(36)
-        self.fonts['section'] = load_font(28, True)
-        self.fonts['body'] = load_font(22)
-        self.fonts['small'] = load_font(18)
+        return {
+            'title': load_font(72, True),
+            'subtitle': load_font(36),
+            'section': load_font(28, True),
+            'body': load_font(22),
+            'small': load_font(18),
+            'extra_small': load_font(14)
+        }
 
-    def generate_dashboard(self, data: LabReportData) -> Image.Image:
-        # Create canvas (1920x1080 for high resolution)
-        width, height = 1920, 1080
+    def generate_dashboard(self, data: LabReportData, width: int = 1920, height: int = 1080) -> Image.Image:
+        scale = width / 1920.0
+        fonts = self._get_fonts(scale)
+        
         img = Image.new('RGB', (width, height), color=self.bg_color)
         draw = ImageDraw.Draw(img, 'RGBA')
         
         # Add subtle radial gradient background or ambient glow
-        self._draw_ambient_glow(draw, width, height)
+        self._draw_ambient_glow(draw, width, height, scale)
         
         # 1. Header Section
-        self._draw_header(draw, data, width)
+        self._draw_header(draw, data, width, fonts, scale)
         
         # 2. Left Panel: Cannabinoids
-        self._draw_cannabinoids(draw, data.cannabinoids)
+        self._draw_cannabinoids(draw, data.cannabinoids, fonts, scale)
         
         # 3. Center: Visual (Flower/Placeholder)
-        self._draw_center_visual(img, draw)
+        self._draw_center_visual(img, draw, width, height, scale)
         
         # 4. Right Panel: Terpenes
-        self._draw_terpenes(draw, data.terpenes)
+        self._draw_terpenes(draw, data.terpenes, fonts, scale)
         
         # 5. Bottom: Info Strip
-        self._draw_footer(draw, data, width, height)
+        self._draw_footer(draw, data, width, height, fonts, scale)
         
         # 6. Watermark
-        self._draw_watermark(draw, width, height)
+        self._draw_watermark(draw, width, height, fonts, scale)
         
         return img
 
-    def _draw_watermark(self, draw, width, height):
+    def _draw_watermark(self, draw, width, height, fonts, scale):
         text = "POWERED BY STRAINAI"
-        draw.text((width - 300, height - 60), text, font=self.fonts['small'], fill=(255, 255, 255, 80))
+        draw.text((width - int(300 * scale), height - int(60 * scale)), text, font=fonts['small'], fill=(255, 255, 255, 80))
 
-    def _draw_ambient_glow(self, draw, width, height):
-        # Subtle purple glow in the center
+    def _draw_ambient_glow(self, draw, width, height, scale):
         center_x, center_y = width // 2, height // 2
-        for r in range(500, 0, -10):
-            alpha = int(30 * (1 - r/500))
+        glow_radius = int(500 * scale)
+        for r in range(glow_radius, 0, int(-10 * scale)):
+            alpha = int(30 * (1 - r/glow_radius))
             draw.ellipse([center_x - r, center_y - r, center_x + r, center_y + r], 
                          fill=(138, 43, 226, alpha))
 
-    def _draw_header(self, draw, data, width):
-        # Strain name
+    def _draw_header(self, draw, data, width, fonts, scale):
         title = data.strain_name.upper()
         subtitle = f"{data.strain_type or 'HYBRID'} | {data.dominance or 'BALANCED'}"
         
-        # Centered Header
-        title_bbox = draw.textbbox((0, 0), title, font=self.fonts['title'])
+        title_bbox = draw.textbbox((0, 0), title, font=fonts['title'])
         title_w = title_bbox[2] - title_bbox[0]
-        draw.text(((width - title_w) // 2, 80), title, font=self.fonts['title'], fill=self.text_color)
+        draw.text(((width - title_w) // 2, int(80 * scale)), title, font=fonts['title'], fill=self.text_color)
         
-        subtitle_bbox = draw.textbbox((0, 0), subtitle, font=self.fonts['subtitle'])
+        subtitle_bbox = draw.textbbox((0, 0), subtitle, font=fonts['subtitle'])
         subtitle_w = subtitle_bbox[2] - subtitle_bbox[0]
-        draw.text(((width - subtitle_w) // 2, 160), subtitle, font=self.fonts['subtitle'], fill=self.accent_color)
+        draw.text(((width - subtitle_w) // 2, int(180 * scale)), subtitle, font=fonts['subtitle'], fill=self.accent_color)
 
-    def _draw_cannabinoids(self, draw, cannabinoids):
-        # Left panel card
-        x, y = 100, 250
-        w, h = 450, 600
-        self._draw_glass_card(draw, x, y, w, h, "CANNABINOID PROFILE")
+    def _draw_cannabinoids(self, draw, cannabinoids, fonts, scale):
+        x, y = int(100 * scale), int(280 * scale)
+        w, h = int(450 * scale), int(620 * scale)
+        self._draw_glass_card(draw, x, y, w, h, "CANNABINOID PROFILE", fonts, scale)
         
-        # Draw bars
-        y_offset = y + 100
-        for i, cb in enumerate(cannabinoids[:8]):  # Limit to 8
-            # Label
-            draw.text((x + 30, y_offset), f"{cb.name}", font=self.fonts['section'], fill=self.text_color)
-            draw.text((x + w - 100, y_offset), f"{cb.value}{cb.unit}", font=self.fonts['section'], fill=self.accent_color)
+        y_offset = y + int(100 * scale)
+        for i, cb in enumerate(cannabinoids[:8]):
+            draw.text((x + int(30 * scale), y_offset), f"{cb.name}", font=fonts['section'], fill=self.text_color)
+            draw.text((x + w - int(120 * scale), y_offset), f"{cb.value}{cb.unit}", font=fonts['section'], fill=self.accent_color)
             
-            # Progress bar background
-            draw.rectangle([x + 30, y_offset + 40, x + w - 30, y_offset + 50], fill=(50, 50, 60, 255))
-            # Progress bar fill
-            bar_w = (cb.value / 35.0) * (w - 60) # Max 35% for normalization
-            bar_w = min(bar_w, w - 60)
-            draw.rectangle([x + 30, y_offset + 40, x + 30 + bar_w, y_offset + 50], fill=self.accent_color)
+            draw.rectangle([x + int(30 * scale), y_offset + int(45 * scale), x + w - int(30 * scale), y_offset + int(55 * scale)], fill=(50, 50, 60, 255))
+            bar_w = (cb.value / 35.0) * (w - int(60 * scale))
+            bar_w = min(bar_w, w - int(60 * scale))
+            draw.rectangle([x + int(30 * scale), y_offset + int(45 * scale), x + int(30 * scale) + bar_w, y_offset + int(55 * scale)], fill=self.accent_color)
             
-            y_offset += 65
+            y_offset += int(65 * scale)
 
-    def _draw_terpenes(self, draw, terpenes):
-        # Right panel card
-        x, y = 1370, 250
-        w, h = 450, 600
-        self._draw_glass_card(draw, x, y, w, h, "TERPENE PROFILE")
+    def _draw_terpenes(self, draw, terpenes, fonts, scale):
+        x, y = int(1370 * scale), int(280 * scale)
+        w, h = int(450 * scale), int(620 * scale)
+        self._draw_glass_card(draw, x, y, w, h, "TERPENE PROFILE", fonts, scale)
         
-        # Rank terpenes
-        y_offset = y + 100
-        for i, terp in enumerate(terpenes[:8]):
-            draw.text((x + 30, y_offset), f"{i+1}. {terp.name}", font=self.fonts['body'], fill=self.text_color)
-            draw.text((x + w - 100, y_offset), f"{terp.value}{terp.unit}", font=self.fonts['body'], fill=self.accent_color)
-            y_offset += 55
+        y_offset = y + int(100 * scale)
+        for i, terp in enumerate(terpenes[:10]):
+            draw.text((x + int(30 * scale), y_offset), f"{i+1}. {terp.name}", font=fonts['body'], fill=self.text_color)
+            draw.text((x + w - int(100 * scale), y_offset), f"{terp.value}{terp.unit}", font=fonts['body'], fill=self.accent_color)
+            y_offset += int(48 * scale)
 
-    def _draw_center_visual(self, img, draw):
-        # Placeholder or flower image
-        # For now, let's just use a stylized circle/glow
-        center_x, center_y = 1920 // 2, 1080 // 2
-        # Future: Load flower image, crop, add glow
+    def _draw_center_visual(self, img, draw, width, height, scale):
         pass
 
-    def _draw_footer(self, draw, data, width, height):
-        # Info strip at the bottom
-        y = height - 120
-        info_text = f"ORIGIN: {data.origin or 'N/A'}  |  LAB: {data.lab_name or 'N/A'}  |  BATCH: {data.batch or 'N/A'}  |  TEST DATE: {data.test_date or 'N/A'}"
+    def _draw_footer(self, draw, data, width, height, fonts, scale):
+        y = height - int(120 * scale)
+        items = [
+            f"ORIGIN: {data.origin or 'N/A'}",
+            f"LAB: {data.lab_name or 'N/A'}",
+            f"BATCH: {data.batch or 'N/A'}",
+            f"TEST DATE: {data.test_date or 'N/A'}",
+            f"GENETICS: {data.genetics or 'N/A'}"
+        ]
+        info_text = "  |  ".join(items)
         
-        bbox = draw.textbbox((0, 0), info_text, font=self.fonts['small'])
+        bbox = draw.textbbox((0, 0), info_text, font=fonts['small'])
         text_w = bbox[2] - bbox[0]
-        draw.text(((width - text_w) // 2, y), info_text, font=self.fonts['small'], fill=self.muted_text_color)
+        draw.text(((width - text_w) // 2, y), info_text, font=fonts['small'], fill=self.muted_text_color)
 
-    def _draw_glass_card(self, draw, x, y, w, h, title):
-        # Draw rounded rectangle with semi-transparent fill
-        draw.rounded_rectangle([x, y, x + w, y + h], radius=30, fill=self.card_bg, outline=(100, 100, 120, 100), width=2)
-        # Draw section title
-        draw.text((x + 30, y + 30), title, font=self.fonts['section'], fill=self.muted_text_color)
+    def _draw_glass_card(self, draw, x, y, w, h, title, fonts, scale):
+        draw.rounded_rectangle([x, y, x + w, y + h], radius=int(30 * scale), fill=self.card_bg, outline=(100, 100, 120, 100), width=max(1, int(2 * scale)))
+        draw.text((x + int(30 * scale), y + int(30 * scale)), title, font=fonts['section'], fill=self.muted_text_color)
+

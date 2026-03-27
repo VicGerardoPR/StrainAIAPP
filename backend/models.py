@@ -14,7 +14,7 @@ class Terpene(BaseModel):
     display_effects: Optional[List[str]] = None
 
 class LabReportData(BaseModel):
-    strain_name: str = Field(..., description="Name of the cannabis strain")
+    strain_name: str = Field("Unknown Strain", description="Name of the cannabis strain")
     strain_type: Optional[str] = Field(None, description="Indica, Sativa, or Hybrid")
     dominance: Optional[str] = Field(None, description="e.g., Indica-dominant")
     lab_name: Optional[str] = None
@@ -38,3 +38,5 @@ class ExtractionRequest(BaseModel):
 
 class GenerationRequest(BaseModel):
     data: LabReportData
+    width: Optional[int] = 1920
+    height: Optional[int] = 1080

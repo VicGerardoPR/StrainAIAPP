@@ -12,3 +12,4 @@ torchvision
 torchaudio
 pdf2image
 pytesseract
+google-generativeai

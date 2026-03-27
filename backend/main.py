@@ -7,6 +7,14 @@ import io
 import base64
 from PIL import Image
 
+import os
+from dotenv import load_dotenv
+
+print("DEBUG: Loading .env...")
+load_dotenv()
+print("DEBUG: .env Loaded. Gemini Token exists:", bool(os.getenv("GEMINI_API_KEY")))
+
+print("DEBUG: Starting FastAPI...")
 app = FastAPI(title="StrainAI Backend API")
 
 # Enable CORS for Next.js frontend
@@ -42,9 +50,13 @@ async def extract(file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/generate-preview")
-async def generate_preview(data: LabReportData):
+async def generate_preview(req: GenerationRequest):
     try:
-        img = renderer.generate_dashboard(data)
+        img = renderer.generate_dashboard(
+            req.data, 
+            width=req.width or 1920, 
+            height=req.height or 1080
+        )
         
         # Convert image to base64 for preview
         buffered = io.BytesIO()
@@ -53,6 +65,8 @@ async def generate_preview(data: LabReportData):
         
         return {"image_data": img_str}
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 # For direct file upload if needed
